@@ -1,13 +1,15 @@
 {
   "name": "chrome-webstore-upload",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Programatically upload + publish changes to the Chrome Webstore",
-  "main": "index.js",
+  "main": "dist/index.js",
   "engines": {
-    "node": ">=6.0.0"
+    "node": ">=4.0.0"
   },
   "scripts": {
-    "test": "ava"
+    "test": "ava",
+    "prepublishOnly": "npm run buble",
+    "buble": "buble -i ./src -o ./dist"
   },
   "keywords": [
     "chrome",
@@ -24,7 +26,8 @@
     "got": "^6.3.0"
   },
   "devDependencies": {
-    "ava": "^0.14.0",
-    "sinon": "^1.17.4"
+    "ava": "^0.17.0",
+    "buble": "^0.15.2",
+    "testdouble": "^1.11.0"
   }
 }

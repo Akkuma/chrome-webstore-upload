@@ -1,98 +1,87 @@
-import test from 'ava';
 import got from 'got';
-import sinon from 'sinon';
+import test from 'ava';
+import td from 'testdouble';
 import url from 'url';
-import getClient from './helpers/get-client';
+import opts from './helpers/opts';
+import { publish, publishTarget } from '../src';
 
-test.beforeEach('Setup Sinon Sandbox', t => {
-    t.context = {
-        sandbox: sinon.sandbox.create(),
-        client: getClient()
-    }
+test.beforeEach(t => {
+  t.context.opts = opts({ token: 'token', zip: '' });
 });
 
-test.afterEach('Reset Sinon Sandbox', t => {
-    t.context.sandbox.restore();
+test.afterEach.always('Reset Testdouble', t => {
+  td.reset();
 });
+
 
 // TODO: Find a better way of handling stubbing, to eliminate the need
 // to run tests serially - https://github.com/avajs/ava/issues/295#issuecomment-161123805
 
-test.serial('Publish uses default target when not provided', async t => {
-    t.plan(1);
+test('Publish uses default target when not provided', async t => {
+  const defaultTarget = publishTarget.public;
 
-    const { client, sandbox } = t.context;
-    const defaultTarget = 'default';
+  td.replace(got, 'post', (uri) => {
+    const { query } = url.parse(uri, true);
+    t.is(query.publishTarget, defaultTarget);
 
-    sandbox.stub(got, 'post', (uri) => {
-        const { query } = url.parse(uri, true);
-        t.is(query.publishTarget, defaultTarget);
+    return Promise.resolve({});
+  });
 
-        return Promise.resolve({});
-    });
-
-    await client.publish(undefined, 'token');
+  await publish(t.context.opts);
 });
 
-test.serial('Publish uses target when provided', async t => {
-    t.plan(1);
+test('Publish uses target when provided', async t => {
+  const target = publishTarget.trustedTesters;
 
-    const { client, sandbox } = t.context;
-    const target = 'trustedTesters';
+  td.replace(got, 'post', (uri) => {
+    const { query } = url.parse(uri, true);
+    t.is(query.publishTarget, target);
 
-    sandbox.stub(got, 'post', (uri) => {
-        const { query } = url.parse(uri, true);
-        t.is(query.publishTarget, target);
+    return Promise.resolve({});
+  });
 
-        return Promise.resolve({});
-    });
-
-    await client.publish(target, 'token');
+  t.context.opts.target = target;
+  await publish(t.context.opts);
 });
 
-test.serial('Publish does not fetch token when provided', async t => {
-    const { client, sandbox } = t.context;
+test('Publish does not fetch token when provided', async t => {
+  td.replace(got, 'post', (uri) => {
+    if (uri === 'https://accounts.google.com/o/oauth2/token') {
+      return t.fail('Token should not have been fetched');
 
-    sandbox.stub(got, 'post', (uri) => {
-        if (uri === 'https://accounts.google.com/o/oauth2/token') {
-            return t.fail('Token should not have been fetched');
-        }
+    }
 
-        return Promise.resolve({});
-    });
+    return Promise.resolve({});
+  });
 
-    await client.publish(undefined, 'token');
-    t.pass('Did not fetch token');
+  await publish(t.context.opts);
+  t.pass('Did not fetch token');
 });
 
-test.serial('Publish uses token for auth', async t => {
-    t.plan(1);
+test('Publish uses token for auth', async t => {
+  const token = 'token';
 
-    const { client, sandbox } = t.context;
-    const token = 'token';
+  td.replace(got, 'post', (uri, { headers }) => {
+    t.is(headers.Authorization, `Bearer ${token}`);
+    return Promise.resolve({});
+  });
 
-    sandbox.stub(got, 'post', (uri, { headers }) => {
-        t.is(headers.Authorization, `Bearer ${token}`);
-        return Promise.resolve({});
-    });
-
-    await client.publish(undefined, token);
+  await publish(t.context.opts);
 });
 
-test.serial('Uses provided extension ID', async t => {
-    t.plan(1);
+test('Uses provided extension ID', async t => {
+  const newOpts = opts('token');
 
-    const { client, sandbox } = t.context;
-    const extensionId = client.extensionId;
+  const extensionId = newOpts.extensionId;
 
-    sandbox.stub(got, 'post', (uri) => {
-        const hasId = new RegExp(`\/items\/${extensionId}`).test(uri);
-        t.true(hasId);
+  td.replace(got, 'post', (uri) => {
+    const hasId = new RegExp(`\/items\/${extensionId}`).test(uri);
+    t.true(hasId);
 
-        return Promise.resolve({});
-    });
+    return Promise.resolve({});
+  });
 
-    await client.publish(undefined, 'token');
+  await publish(t.context.opts);
 });
 
 test.todo('Publish only returns response body on success');

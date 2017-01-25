@@ -1,37 +1,33 @@
 import test from 'ava';
 import got from 'got';
-import sinon from 'sinon';
-import getClient from './helpers/get-client';
+import td from 'testdouble';
+import { fetchToken } from '../src';
+import opts from './helpers/opts';
 
 test.beforeEach('Setup Sinon Sandbox', t => {
-    t.context = {
-        sandbox: sinon.sandbox.create(),
-        client: getClient()
-    }
+  t.context.opts = opts();
 });
 
 test.afterEach('Reset Sinon Sandbox', t => {
-    t.context.sandbox.restore();
+  td.reset();
 });
 
 // TODO: Find a better way of handling stubbing, to eliminate the need
 // to run tests serially - https://github.com/avajs/ava/issues/295#issuecomment-161123805
 
-test.serial('Only returns token from response body', async t => {
-    t.plan(1);
+test('Only returns token from response body', async t => {
+  const { client, sandbox } = t.context;
+  const accessToken = 'access-token';
 
-    const { client, sandbox } = t.context;
-    const accessToken = 'access-token';
-
-    sandbox.stub(got, 'post', (uri) => {
-        return Promise.resolve({
-            body: {
-                access_token: accessToken
-            }
-        });
+  td.replace(got, 'post', (uri) => {
+    return Promise.resolve({
+      body: {
+        access_token: accessToken
+      }
     });
+  });
 
-    t.is(await client.fetchToken(), accessToken);
+  t.is(await fetchToken(t.context.opts), accessToken);
 });
 
 test.todo('Request includes clientId, clientSecret, and refreshToken');
