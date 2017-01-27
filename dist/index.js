@@ -69,7 +69,7 @@ function upsert(opts) {
     .then(extractBody);
 }
 
-function update(opts) {
+function update(opts, token) {
   if (!opts.extensionId) { return Promise.reject(new Error('Extension Id missing')); }
 
   return upsert(opts);
@@ -84,7 +84,8 @@ function publish(opts) {
   return tokenProm.then(function (token) {
     var upsert = Promise.resolve();
     if (zip) {
-      upsert = extensionId ? upload(opts, token) : insert(opts, token);
+      var updatedOpts = Object.assign({}, opts, { token: token });
+      upsert = extensionId ? update(updatedOpts) : insert(updatedOpts);
     }
 
     return Promise.all([upsert, token]);

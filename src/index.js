@@ -77,7 +77,8 @@ function publish(opts) {
   return tokenProm.then(token => {
     let upsert = Promise.resolve();
     if (zip) {
-      upsert = extensionId ? upload(opts, token) : insert(opts, token);
+      const updatedOpts = Object.assign({}, opts, { token });
+      upsert = extensionId ? update(updatedOpts) : insert(updatedOpts);
     }
 
     return Promise.all([upsert, token]);
